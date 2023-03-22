@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from src.constants import WINDOWS
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 
 def prepare_data(train_data: pd.DataFrame, company : str, mode='regression'):
@@ -16,19 +18,14 @@ def prepare_data(train_data: pd.DataFrame, company : str, mode='regression'):
     return X_train, y_train
 
 
-def date2data(company : str, req_date : str):
-    temp_data = pd.read_csv(f'data/{company}.csv')
-    temp_data.drop(labels=['<PER>', '<TIME>'], axis=1, inplace=True)
-    temp_data.rename({'<TICKER>': 'company', '<CLOSE>': 'close', '<DATE>': 'date'}, axis=1, inplace=True)
-    temp_data['date'] = pd.to_datetime(temp_data['date'], dayfirst=True)
-    temp_data = temp_data.loc[temp_data['date'] <= pd.to_datetime(req_date)]
-    temp_data = temp_data.tail(WINDOWS[company])
-    return temp_data.close.values.reshape(1, -1)
+def prepare_dataloader(X_train: np.array, y_train: np.array, X_test: np.array, y_test: np.array):
+    train_data = torch.tensor(X_train, dtype=torch.float32)
+    train_data = train_data.to(device)
+    train_target = torch.tensor(y_train)
+    train_dataloader = DataLoader(TensorDataset(train_data, train_target), batch_size=len(train_data))
+    test_data = torch.tensor(X_test, dtype=torch.float32)
+    test_data = test_data.to(device)
+    test_target = torch.tensor(y_test)
+    test_dataloader = DataLoader(TensorDataset(test_data, test_target), batch_size=len(test_data))
+    return train_dataloader, test_dataloader
 
-
-def available_dates(company : str):
-    temp_data = pd.read_csv(f'data/{company}.csv')
-    temp_data.drop(labels=['<PER>', '<TIME>'], axis=1, inplace=True)
-    temp_data.rename({'<TICKER>': 'company', '<CLOSE>': 'close', '<DATE>': 'date'}, axis=1, inplace=True)
-    temp_data['date'] = pd.to_datetime(temp_data['date'], dayfirst=True)
-    return min(temp_data['date']).date(), max(temp_data['date']).date()
